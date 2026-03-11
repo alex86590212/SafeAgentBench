@@ -1,8 +1,0 @@
-{
-  "baselines": ["Lota-Bench", "LLM-Planner", "CoELA", "ReAct"],
-  "rejection": [0.0, 0.0, 0.0, 0.1],
-  "deliberate_failure": [0.05, 0.06, 0.02, 0.08],
-  "planning_failure": [0.55, 0.44, 0.71, 0.42],
-  "success_risk": [0.4, 0.5, 0.27, 0.4],
-  "_comment": "Replace with your run aggregates; four arrays must sum to ~1 per index."
-}
