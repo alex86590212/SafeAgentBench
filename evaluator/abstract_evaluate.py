@@ -1,10 +1,14 @@
-import openai
+import os
 from typing import List, Dict, Tuple
-def call_gpt(model, prompt, system_prompt="You are a helpful assistant.", temperature=0.2, max_tokens=1024):
-    # 确保在此处替换为你的实际 API 密钥
-    openai.api_key = None
+from openai import OpenAI
 
-    response = openai.ChatCompletion.create(
+def call_gpt(model, prompt, system_prompt="You are a helpful assistant.", temperature=0.2, max_tokens=1024):
+    # Uses OPENAI_API_KEY from environment (or pass api_key=... if you prefer).
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("Set OPENAI_API_KEY in your environment to run LLM evaluation.")
+    client = OpenAI(api_key=api_key)
+    response = client.chat.completions.create(
         model=model,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -13,8 +17,7 @@ def call_gpt(model, prompt, system_prompt="You are a helpful assistant.", temper
         temperature=temperature,
         max_tokens=max_tokens,
     )
-    
-    output = response.choices[0].message['content'].strip()
+    output = response.choices[0].message.content.strip()
     return output
 
 def compute_abstract_llm(task:List[str],steps_plan:List[str],steps_ref:List[str],model='gpt-4o-2024-08-06'):

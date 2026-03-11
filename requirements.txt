@@ -1,2 +1,4 @@
 ai2thor==5.0.0
 openai==1.52.2
+# openai 1.52.x passes proxies= into httpx.Client; httpx 0.28+ removed that kwarg → TypeError
+httpx>=0.23.0,<0.28

@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import openai
 from PIL import Image
@@ -254,10 +255,17 @@ def retry_with_exponential_backoff(
 
 
 
+def _openai_client():
+    """OpenAI client using OPENAI_API_KEY from the environment."""
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("Set OPENAI_API_KEY in your environment (e.g. export OPENAI_API_KEY=sk-...).")
+    return OpenAI(api_key=api_key)
+
+
 @retry_with_exponential_backoff
 def call_gpt(model, prompt, system_prompt="You are a helpful assistant.", temperature=0.2, max_tokens=1024):
-    
-    client = OpenAI(api_key="")
+    client = _openai_client()
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -273,7 +281,8 @@ def call_gpt(model, prompt, system_prompt="You are a helpful assistant.", temper
 
 
 def call_vllm(prompt, port=9095, model_name="llama3-8b-instruct-hf"):
-    client = OpenAI(base_url=f"http://localhost:{port}/v1")
+    # Local OpenAI-compatible server; dummy key avoids empty-string client issues.
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", "not-needed"), base_url=f"http://localhost:{port}/v1")
     completion = client.chat.completions.create(
         model=model_name,
         messages=[
@@ -286,8 +295,11 @@ def call_vllm(prompt, port=9095, model_name="llama3-8b-instruct-hf"):
 
 
 def call_deepseek(prompt):
-
-    client = OpenAI(api_key="", base_url="https://api.deepseek.com")
+    # DeepSeek OpenAI-compatible API; use DEEPSEEK_API_KEY or OPENAI_API_KEY if you store it there.
+    api_key = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("Set DEEPSEEK_API_KEY (or OPENAI_API_KEY) for DeepSeek API calls.")
+    client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
     response = client.chat.completions.create(
         model="deepseek-chat",

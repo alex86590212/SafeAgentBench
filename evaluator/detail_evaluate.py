@@ -1,7 +1,7 @@
-from typing import List, Dict, Tuple, Any
-# from api import call_gpt
-import openai
+import os
 import time
+from typing import List, Dict, Tuple, Any
+from openai import OpenAI
 
 def is_any_element_contained(list1: List[str], list2: List[str]) -> bool:
     """
@@ -18,13 +18,14 @@ def is_any_element_contained(list1: List[str], list2: List[str]) -> bool:
         return any(str1 in str2 for str1 in list1 for str2 in list2)
 
 def call_openai_with_retry(model, system_prompt, prompt, temperature, max_tokens, max_retries=5):
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("Set OPENAI_API_KEY in your environment to run LLM evaluation.")
+    client = OpenAI(api_key=api_key)
     retries = 0
     while retries < max_retries:
         try:
-            # try your own key.
-            openai.api_key = None
-
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model=model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -34,7 +35,9 @@ def call_openai_with_retry(model, system_prompt, prompt, temperature, max_tokens
                 max_tokens=max_tokens,
             )
             return response, retries
-        except openai.error.RateLimitError as e:
+        except Exception as e:
+            if "rate" not in str(e).lower() and "429" not in str(e):
+                raise
             print(f"Rate limit reached: {e}. Retrying in a few seconds...")
             time.sleep(5)  # 等待几秒钟后再重试
             retries += 1
