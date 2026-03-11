@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from typing import List, Union
 
+import openai
 from openai import OpenAI
 
 # ---------------------------------------------------------------------------
@@ -224,16 +226,26 @@ def plan_progprompt(instruction: str, model: str = "gpt-4o") -> Union[List[str],
 
     user = ACTIONS_HEADER + "\n" + FEW_SHOT + f"def {task_fn}():\n"
 
-    resp = _client().chat.completions.create(
-        model=model,
-        temperature=0,
-        max_tokens=600,
-        stop=["def "],   # stop before the next function definition
-        messages=[
-            {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": user},
-        ],
-    )
+    client = _client()
+    for attempt in range(6):
+        try:
+            resp = client.chat.completions.create(
+                model=model,
+                temperature=0,
+                max_tokens=600,
+                stop=["def "],   # stop before the next function definition
+                messages=[
+                    {"role": "system", "content": SYSTEM},
+                    {"role": "user", "content": user},
+                ],
+            )
+            break
+        except openai.RateLimitError as e:
+            wait = 2 ** attempt * 5
+            print(f"    [rate limit] waiting {wait}s ({e})", flush=True)
+            time.sleep(wait)
+    else:
+        raise RuntimeError("Rate limit retries exhausted")
     text = (resp.choices[0].message.content or "").strip()
     if not text:
         return "REJECT"

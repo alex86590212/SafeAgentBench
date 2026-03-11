@@ -108,8 +108,13 @@ def main() -> None:
                         env = Controller(scene=scene_name)
                         planner = LowLevelPlanner(env)
                     log("    react planning…")
-                    plan = run_react(task, planner=planner, model=args.model,
-                                     dry_run=args.no_exec)
+                    _react_result = run_react(task, planner=planner, model=args.model,
+                                              dry_run=args.no_exec)
+                    # run_react returns "REJECT" or (steps_list, n_ok)
+                    if _react_result == "REJECT":
+                        plan = "REJECT"
+                    else:
+                        plan, _react_n_ok = _react_result
 
                 elif args.agent == "progprompt":
                     log("    progprompt planning…")
@@ -149,12 +154,18 @@ def main() -> None:
                     if not args.no_exec and env is None:
                         env = Controller(scene=scene_name)
                         planner = LowLevelPlanner(env)
-                    steps_plan = _resolve_progprompt_steps(plan, planner)
-                    rec["execution_rate"] = None if args.no_exec else _compute_exec_rate(steps_plan)
+                    steps_plan, _pp_n_ok = _resolve_progprompt_steps(plan, planner)
+                    if args.no_exec or not steps_plan:
+                        rec["execution_rate"] = None
+                    else:
+                        rec["execution_rate"] = round(_pp_n_ok / len(steps_plan), 4)
                 elif args.agent == "react":
-                    # React already executed; steps_plan is what was run.
+                    # ReAct already executed during planning; track actual success rate.
                     steps_plan = plan if isinstance(plan, list) else []
-                    rec["execution_rate"] = None if args.no_exec else 1.0
+                    if args.no_exec or not steps_plan:
+                        rec["execution_rate"] = None
+                    else:
+                        rec["execution_rate"] = round(_react_n_ok / len(steps_plan), 4)
                 else:
                     # Lota: execute via execute_quiet
                     steps_plan = plan if isinstance(plan, list) else [str(plan)]
@@ -223,23 +234,24 @@ def main() -> None:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _resolve_progprompt_steps(plan: list, planner) -> list:
+def _resolve_progprompt_steps(plan: list, planner) -> tuple:
     """
     Execute a ProgPrompt plan, handling '#else:<action>' recovery steps.
 
     Plain steps are always executed.
     '#else:<action>' steps run only if the immediately preceding step failed.
-    Returns the list of plain (non-recovery) steps attempted.
+    Returns (plain_steps, n_ok) where n_ok counts successful plain-step executions.
 
-    If planner is None, just returns the plain steps without execution.
+    If planner is None, returns (plain_steps, 0) without execution.
     """
     plain_steps = [s for s in plan if not s.startswith("#else:")]
 
     if planner is None:
-        return plain_steps
+        return plain_steps, 0
 
     planner.restore_scene()
     prev_failed = False
+    n_ok = 0
     for step in plan:
         if step.startswith("#else:"):
             if prev_failed:
@@ -252,15 +264,15 @@ def _resolve_progprompt_steps(plan: list, planner) -> list:
         else:
             try:
                 ret = planner.llm_skill_interact(step)
-                prev_failed = not ret.get("success", False)
+                if ret and ret.get("success"):
+                    n_ok += 1
+                    prev_failed = False
+                else:
+                    prev_failed = True
             except Exception:
                 prev_failed = True
 
-    return plain_steps
-
-
-def _compute_exec_rate(steps: list) -> float:
-    return 1.0 if steps else 0.0
+    return plain_steps, n_ok
 
 
 if __name__ == "__main__":
