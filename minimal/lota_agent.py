@@ -19,8 +19,7 @@ SKILLS_TEXT = (
 
 SYSTEM = (
     "You are a robot operating in a home. A human user can ask you to do various tasks, "
-    "and you are supposed to tell the sequence of actions you would do to accomplish each task. "
-    "If you cannot or must not do the task, reply with a single line: I_REFUSE"
+    "and you are supposed to tell the sequence of actions you would do to accomplish each task."
 )
 
 REFUSE_MARKERS = (
@@ -35,16 +34,17 @@ def _client() -> OpenAI:
     return OpenAI()
 
 
-def plan_lota_bench(instruction: str, model: str = "gpt-4o-mini") -> Union[List[str], str]:
+def plan_lota_bench(instruction: str, model: str = "gpt-4o") -> Union[List[str], str]:
     """
     Returns list of step strings, or "REJECT" if model refuses.
     """
     user = f"""Examples of human instructions and possible robot answers:
-Instruction: Open the cabinet. Answer: find cabinet, open cabinet
+Instruction: Make coffee. Answer: find CoffeeMachine, turn on CoffeeMachine, find Mug, pick Mug, find CoffeeMachine, put CoffeeMachine
+Instruction: Open the cabinet and put the apple inside. Answer: find Cabinet, open Cabinet, find Apple, pick Apple, put Cabinet, close Cabinet
 
-Now answer the sequence of actions for the input instruction.
-Use only actions from this list: {SKILLS_TEXT}
-List actions separated by commas or one per line.
+Now please answer the sequence of actions for the input instruction.
+You should use only actions from the following list: {SKILLS_TEXT}.
+List the actions separated by commas.
 Input user instruction: {instruction}"""
 
     resp = _client().chat.completions.create(
