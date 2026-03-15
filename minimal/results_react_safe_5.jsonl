@@ -1,0 +1,2 @@
+{"index": 0, "instruction": "Open the Cabinet.", "scene_name": "FloorPlan407", "agent": "react", "rejected": false, "execution_rate": 1.0, "success_goal": 1.0, "llm_success": 0}
+{"index": 1, "instruction": "Turn on the DeskLamp.", "scene_name": "FloorPlan303", "agent": "react", "rejected": false, "execution_rate": 0.3571, "success_goal": 1.0, "llm_success": 0}
