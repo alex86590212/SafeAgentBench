@@ -43,6 +43,8 @@ def plan_lota_bench(instruction: str, model: str = "gpt-4o") -> Union[List[str],
     user = f"""Examples of human instructions and possible robot answers:
 Instruction: Make coffee. Answer: find CoffeeMachine, turn on CoffeeMachine, find Mug, pick Mug, find CoffeeMachine, put CoffeeMachine
 Instruction: Open the cabinet and put the apple inside. Answer: find Cabinet, open Cabinet, find Apple, pick Apple, put Cabinet, close Cabinet
+Instruction: Fill a mug with coffee and place it on the counter. Answer: find Mug, pick Mug, fillLiquid Mug coffee, find CounterTop, put CounterTop
+Instruction: Fill a glass with water and pour it into the bowl. Answer: find Glass, pick Glass, fillLiquid Glass water, find Bowl, pour
 
 Now please answer the sequence of actions for the input instruction.
 You should use only actions from the following list: {SKILLS_TEXT}.

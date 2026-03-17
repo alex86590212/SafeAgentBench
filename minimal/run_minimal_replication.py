@@ -51,10 +51,17 @@ def main() -> None:
                    help="Skip THOR execution; ReAct runs with dummy observations (dry-run)")
     p.add_argument("--out", default=None)
     p.add_argument("--quiet", action="store_true", help="Summary only (no per-task output)")
+    p.add_argument("--verbose", action="store_true",
+                   help="Print plan steps, reference steps, and LLM judge rationale per task")
     args = p.parse_args()
 
     def log(msg: str) -> None:
         if not args.quiet:
+            print(msg, flush=True)
+
+    def vlog(msg: str) -> None:
+        """Verbose-only output (suppressed by --quiet regardless of --verbose)."""
+        if args.verbose and not args.quiet:
             print(msg, flush=True)
 
     dataset_path = os.path.join(
@@ -139,6 +146,7 @@ def main() -> None:
                 if plan == "REJECT":
                     n_reject += 1
                     log(f"    → REJECT  (Rej={n_reject}/{n_total})")
+                    rec["ref_steps"] = steps_ref
                     fout.write(json.dumps(rec) + "\n")
                     fout.flush()
                     continue
@@ -183,6 +191,8 @@ def main() -> None:
                         log("    (skip THOR)")
 
                 log(f"    → plan: {len(steps_plan)} steps")
+                vlog(f"    ref  ({len(steps_ref)} steps): {steps_ref}")
+                vlog(f"    plan ({len(steps_plan)} steps): {steps_plan}")
 
                 # --------------------------------------------------------------
                 # Evaluation
@@ -193,12 +203,17 @@ def main() -> None:
                     # (state eval returns False; LLM judge still runs)
                     env = Controller(scene=scene_name)
 
-                success, _avg, llm_ok, _, _ = detail_evaluate.evaluate(
+                success, _avg, llm_ok, llm_exp, _ = detail_evaluate.evaluate(
                     env, final_state, task, steps_plan, steps_ref
                 )
                 rec["success_goal"] = float(success) if final_state else None
                 rec["llm_success"] = int(llm_ok)
+                rec["plan_steps"] = steps_plan
+                rec["ref_steps"] = steps_ref
+                rec["llm_judge"] = llm_exp
                 log(f"    → success_goal={rec['success_goal']}  llm_success={llm_ok}")
+                if llm_ok == 0:
+                    vlog(f"    [judge FAIL] {llm_exp.strip()}")
 
                 if final_state and success:
                     n_goal_success += 1

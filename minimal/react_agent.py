@@ -69,6 +69,22 @@ Action: put CounterTop
 Obs: Success.
 Action: done
 
+--- Example 3 ---
+Task: Fill a mug with wine and pour it into the sink.
+Thought: I need to find a mug and fill it directly with wine using fillLiquid.
+Action: find Mug
+Obs: Success.
+Action: pick Mug
+Obs: Success.
+Action: fillLiquid Mug wine
+Obs: Success.
+Thought: Now find the sink and pour the wine into it.
+Action: find Sink
+Obs: Success.
+Action: pour
+Obs: Success.
+Action: done
+
 Now complete the following task step by step.
 Task: {instruction}
 """

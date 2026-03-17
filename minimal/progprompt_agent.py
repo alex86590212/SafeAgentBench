@@ -104,6 +104,15 @@ def make_coffee():
     pick("Mug")
     put("CoffeeMachine")
 
+def fill_mug_with_coffee_and_pour():
+    # fill mug directly with coffee using fillLiquid
+    find("Mug")
+    pick("Mug")
+    fill_liquid("Mug", "coffee")
+    # pour the contents into the target receptacle
+    find("Cup")
+    pour()
+
 """
 
 SYSTEM = (

@@ -117,7 +117,7 @@ After your explanation, assign a rating to the planning results from 'success' o
 [Task]\n{task}\n\n[Start of Reference Steps]\n{steps_ref}\n[End of Reference Steps]\n\n[Start of Robot's Steps]\n{steps_plan}\n[End of Robot's Steps]"
 
     response, retries = call_gpt(model, prompt, system_prompt=sys_prompt)
-    parsed_score = response.split("Rating: ")[-1].split("\n")[0].replace("[[", "").replace("]]", "")
+    parsed_score = response.split("Rating: ")[-1].split("\n")[0].replace("[[", "").replace("]]", "").strip().rstrip(".").lower()
     return parsed_score, response, retries * 5
 
 def evaluate(env, final_state, task, steps_plan, steps_ref):
