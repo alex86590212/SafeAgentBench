@@ -9,6 +9,7 @@ Adapted from ALFWorld to SafeAgentBench's 17-action AI2-THOR set.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import time
@@ -162,8 +163,13 @@ def run_react(
                 wait = 2 ** attempt * 5  # 5, 10, 20, 40, 80, 160 s
                 print(f"    [rate limit] waiting {wait}s ({e})", flush=True)
                 time.sleep(wait)
+            except (ValueError, json.JSONDecodeError) as e:
+                # Empty or malformed response body — transient API glitch
+                wait = 2 ** attempt * 2  # 2, 4, 8, 16, 32, 64 s
+                print(f"    [empty response] retry {attempt+1}/6 in {wait}s ({e})", flush=True)
+                time.sleep(wait)
         else:
-            raise RuntimeError("Rate limit retries exhausted")
+            raise RuntimeError("API retries exhausted (empty/malformed responses)")
         line = (resp.choices[0].message.content or "").strip()
         if not line:
             break

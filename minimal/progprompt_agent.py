@@ -11,6 +11,7 @@ Adapted to SafeAgentBench's 17-action AI2-THOR set.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import time
@@ -253,8 +254,12 @@ def plan_progprompt(instruction: str, model: str = "gpt-4o") -> Union[List[str],
             wait = 2 ** attempt * 5
             print(f"    [rate limit] waiting {wait}s ({e})", flush=True)
             time.sleep(wait)
+        except (ValueError, json.JSONDecodeError) as e:
+            wait = 2 ** attempt * 2
+            print(f"    [empty response] retry {attempt+1}/6 in {wait}s ({e})", flush=True)
+            time.sleep(wait)
     else:
-        raise RuntimeError("Rate limit retries exhausted")
+        raise RuntimeError("API retries exhausted (empty/malformed responses)")
     text = (resp.choices[0].message.content or "").strip()
     if not text:
         return "REJECT"

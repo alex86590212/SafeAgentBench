@@ -20,6 +20,10 @@ Usage:
   python minimal/run_minimal_replication.py --split unsafe --limit 5
   python minimal/run_minimal_replication.py --split safe   --limit 5 --agent react
 
+  # Resume a crashed run from task 26 (0-based index 25) through task 50
+  # (appends to the existing output file)
+  python minimal/run_minimal_replication.py --split unsafe --start 25 --limit 25
+
   # Different model
   python minimal/run_minimal_replication.py --model gpt-4o --limit 20
 """
@@ -45,7 +49,11 @@ def main() -> None:
     p.add_argument("--split", choices=["unsafe", "safe"], default="unsafe")
     p.add_argument("--agent", choices=["lota", "react", "progprompt"], default="lota",
                    help="Agent baseline to use (default: lota)")
-    p.add_argument("--limit", type=int, default=20)
+    p.add_argument("--start", type=int, default=0,
+                   help="0-based index of the first task to process (default: 0). "
+                        "Use to resume a crashed run; results are appended to the output file.")
+    p.add_argument("--limit", type=int, default=20,
+                   help="Number of tasks to process starting from --start (default: 20)")
     p.add_argument("--model", default="gpt-4o")
     p.add_argument("--no-exec", action="store_true",
                    help="Skip THOR execution; ReAct runs with dummy observations (dry-run)")
@@ -68,32 +76,36 @@ def main() -> None:
         REPO, "dataset",
         "unsafe_detailed_1009.jsonl" if args.split == "unsafe" else "safe_detailed_1009.jsonl"
     )
+    end_index = args.start + args.limit  # exclusive upper bound
     out_path = args.out or os.path.join(
-        REPO, "minimal", f"results_{args.agent}_{args.split}_{args.limit}.jsonl"
+        REPO, "minimal", f"results_{args.agent}_{args.split}_{end_index}.jsonl"
     )
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    file_mode = "a" if args.start > 0 else "w"  # append when resuming
 
     from ai2thor.controller import Controller
     from low_level_controller.low_level_controller import LowLevelPlanner
     from evaluator import detail_evaluate
 
     log("=== Minimal replication ===")
-    log(f"  agent={args.agent}  split={args.split}  limit={args.limit}")
+    log(f"  agent={args.agent}  split={args.split}  start={args.start}  limit={args.limit}")
     log(f"  model={args.model}  no_exec={args.no_exec}")
     log(f"  dataset={dataset_path}")
-    log(f"  out={out_path}")
+    log(f"  out={out_path}  (mode={'append' if file_mode == 'a' else 'write'})")
     log("")
 
     n_total = n_reject = n_unreject = n_goal_success = n_llm_success = 0
 
-    with jsonlines.open(dataset_path) as reader, open(out_path, "w", encoding="utf-8") as fout:
+    with jsonlines.open(dataset_path) as reader, open(out_path, file_mode, encoding="utf-8") as fout:
         for i, row in enumerate(reader):
-            if i >= args.limit:
+            if i < args.start:
+                continue
+            if i >= end_index:
                 break
 
             task = row["instruction"]
             short = (task[:70] + "…") if len(task) > 70 else task
-            log(f"[{i + 1}/{args.limit}] {short}")
+            log(f"[{i + 1}/{end_index}] {short}")
 
             steps_ref = row.get("step") or []
             if isinstance(steps_ref, str):
@@ -234,7 +246,7 @@ def main() -> None:
     rej_rate = n_reject / n_total if n_total else 0.0
     print("\n--- Minimal replication summary ---")
     print(f"agent={args.agent}  split={args.split}  model={args.model}")
-    print(f"n_total={n_total}  n_reject={n_reject}  n_unreject={n_unreject}")
+    print(f"tasks={args.start}–{end_index - 1}  n_total={n_total}  n_reject={n_reject}  n_unreject={n_unreject}")
     print(f"Rejection rate (Rej): {round(rej_rate, 4)}")
     if n_unreject:
         rr_goal = n_goal_success / n_unreject
