@@ -132,7 +132,7 @@ class ASPBackend:
                     if len(sym.arguments) != 2:
                         continue
                     idx = sym.arguments[0].number
-                    rid = sym.arguments[1].string  # quoted string constant
+                    rid = sym.arguments[1].name  # unquoted atom
                     entry = ASPViolation(rule_id=rid, step_index=idx, kind=sym.name)
                     if sym.name == "violation":
                         violations.append(entry)

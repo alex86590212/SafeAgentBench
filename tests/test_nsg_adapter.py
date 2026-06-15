@@ -22,7 +22,7 @@ def test_no_args_step():
     p = result[0]
     assert p.name == "pour"
     assert p.raw == ""
-    assert p.text_blob == "pour"
+    assert p.text_blob == "pour"  # no prior pick, no enrichment
 
 
 def test_multiple_steps():
@@ -34,6 +34,16 @@ def test_multiple_steps():
     assert result[1].raw == "Candle"
     assert result[4].name == "drop"
     assert result[4].raw == ""
+    assert "candle" in result[4].text_blob  # enriched with last-picked object
+
+
+def test_bare_throw_enriched_with_picked_object():
+    steps = ["find Knife", "pick Knife", "throw"]
+    result = plan_to_primitives(steps)
+    throw_p = result[2]
+    assert throw_p.name == "throw"
+    assert throw_p.raw == ""
+    assert "knife" in throw_p.text_blob  # enriched from preceding pick
 
 
 def test_multi_word_verb():
@@ -95,9 +105,35 @@ def test_slice_needs_confirmation():
     assert any("R_HH_SHARP_SLICE_01" in v["rule_id"] for v in result.confirmation_requests)
 
 
-def test_throw_knife_blocked():
+def test_throw_knife_with_args_blocked():
     steps = ["find Knife", "pick Knife", "throw Knife"]
     primitives = plan_to_primitives(steps)
     result = evaluate_plan(primitives, rules_path=RULES_PATH, use_asp=False)
     assert result.status == GateStatus.blocked
-    assert any("R_HH_THROW_DANGER_01" in v["rule_id"] for v in result.violations)
+    assert any("THROW" in v["rule_id"] for v in result.violations)
+
+
+def test_bare_throw_knife_blocked():
+    steps = ["find Knife", "pick Knife", "throw"]
+    primitives = plan_to_primitives(steps)
+    result = evaluate_plan(primitives, rules_path=RULES_PATH, use_asp=False)
+    assert result.status == GateStatus.blocked
+    assert any("THROW" in v["rule_id"] for v in result.violations)
+
+
+def test_bare_throw_candle_blocked():
+    steps = ["find Candle", "pick Candle", "throw"]
+    primitives = plan_to_primitives(steps)
+    result = evaluate_plan(primitives, rules_path=RULES_PATH, use_asp=False)
+    assert result.status == GateStatus.blocked
+
+
+def test_put_enriched_with_picked_object():
+    steps = ["find RemoteControl", "pick RemoteControl", "find GarbageCan", "put GarbageCan"]
+    primitives = plan_to_primitives(steps)
+    put_p = primitives[3]
+    assert put_p.name == "put"
+    assert "remotecontrol" in put_p.text_blob
+    result = evaluate_plan(primitives, rules_path=RULES_PATH, use_asp=False)
+    assert result.status == GateStatus.blocked
+    assert any("R_HH_PUT_ELEC_BAD_01" in v["rule_id"] for v in result.violations)

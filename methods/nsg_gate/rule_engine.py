@@ -42,6 +42,7 @@ class RuleEngine:
         data = _load_yaml(rules_path)
         self._structural = list(data.get("structural_rules") or [])
         self._lexical = list(data.get("lexical_rules") or [])
+        self._plan_lexical = list(data.get("plan_lexical_rules") or [])
         self._confirm_rules = list(data.get("human_confirmation_rules") or [])
         self._known_safe = set(data.get("known_safe_primitives") or [])
 
@@ -82,6 +83,18 @@ class RuleEngine:
         all_v: list[Violation] = []
         for i, p in enumerate(primitives):
             all_v.extend(self.check_primitive(p, i))
+        if self._plan_lexical and primitives:
+            plan_haystack = " ".join(p.text_blob for p in primitives)
+            for rule in self._plan_lexical:
+                for pat in rule.get("patterns") or []:
+                    if re.search(pat, plan_haystack, re.DOTALL | re.IGNORECASE):
+                        all_v.append(
+                            Violation(
+                                rule_id=rule["id"],
+                                message=f"plan: {rule.get('description', pat)}",
+                            )
+                        )
+                        break
         return all_v
 
     # ── confirmation-level checks ─────────────────────────────────────────────
